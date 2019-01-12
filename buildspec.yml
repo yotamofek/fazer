@@ -1,0 +1,18 @@
+version: 0.2
+
+phases:
+  pre_build:
+    commands:
+      - $(aws ecr get-login --no-include-email --region eu-west-1)
+      - docker pull 933836017273.dkr.ecr.eu-west-1.amazonaws.com/fazer:builder
+      - docker pull 933836017273.dkr.ecr.eu-west-1.amazonaws.com/fazer
+  build:
+    commands:
+      - docker build -t fazer:builder --target builder --cache-from=933836017273.dkr.ecr.eu-west-1.amazonaws.com/fazer:builder .
+      - docker tag fazer:builder 933836017273.dkr.ecr.eu-west-1.amazonaws.com/fazer:builder
+      - docker build -t fazer --cache-from=933836017273.dkr.ecr.eu-west-1.amazonaws.com/fazer:builder .
+      - docker tag fazer 933836017273.dkr.ecr.eu-west-1.amazonaws.com/fazer
+  post_build:
+    commands:
+      - docker push 933836017273.dkr.ecr.eu-west-1.amazonaws.com/fazer:builder
+      - docker push 933836017273.dkr.ecr.eu-west-1.amazonaws.com/fazer
