@@ -1,0 +1,24 @@
+[package]
+name = "fazer"
+version = "0.1.0"
+authors = ["Yotam Ofek <yotam.ofek@gmail.com>"]
+edition = "2018"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+web-sys = "0.3.8"
+mp3-metadata = { git = "https://github.com/yotamofek/mp3-metadata" }
+metaflac = { git = "https://github.com/yotamofek/rust-metaflac" }
+serde = "1.0.84"
+serde_derive = "1.0.84"
+id3 = "0.2.5"
+lewton = "0.9.3"
+ogg_metadata = "0.4.1"
+mp4parse = "0.11.2"
+hound = "3.4.0"
+
+[dependencies.wasm-bindgen]
+version = "0.2.31"
+features = ["serde-serialize"]
