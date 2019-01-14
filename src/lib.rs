@@ -73,7 +73,6 @@ pub fn read_mp3(reader: &[u8]) -> Option<Metadata> {
         };
 
         for tag in res.optional_info {
-            log(&format!("{:#?}", tag));
             if metadata.title.is_none() && tag.title.is_some() {
                 metadata.title = Some(tag.title.unwrap().clone())
             }
@@ -98,8 +97,6 @@ pub fn read_mp3(reader: &[u8]) -> Option<Metadata> {
         }
 
         metadata.seconds = Some(res.duration.as_float_secs());
-    } else {
-        log("didn't work!!!!");
     }
 
     Some(metadata)
