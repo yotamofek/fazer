@@ -197,7 +197,7 @@ pub fn read_mp4(reader: &[u8]) -> Option<Metadata> {
                         mp4parse::CodecType::AAC => "AAC",
                         mp4parse::CodecType::ALAC => "ALAC",
                         mp4parse::CodecType::AV1 => "AV1",
-                        mp4parse::CodecType::Opus => "Opus",
+                        mp4parse::CodecType::Opus => "OPUS",
                         mp4parse::CodecType::FLAC => "FLAC",
                         mp4parse::CodecType::VP8 => "VP8",
                         mp4parse::CodecType::VP9 => "VP9",
