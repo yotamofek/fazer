@@ -2,8 +2,7 @@ FROM liuchong/rustup:nightly as rust
 
 RUN rustup target add wasm32-unknown-unknown && cargo install wasm-pack
 
-ADD Cargo.toml .
-ADD src ./src
+ADD . .
 RUN wasm-pack build
 
 FROM node:11.6.0-slim as builder
