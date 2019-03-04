@@ -248,7 +248,7 @@ pub fn read_wav(reader: &[u8]) -> Option<Metadata> {
 
 #[wasm_bindgen(js_name = "translateHebrewGibberish")]
 pub fn translate_hebrew_gibberish(data: &str) -> String {
-    if is_utf8_latin1(data.as_bytes()) && data.chars().any(|c| '\u{0080}' >= c && c <= '\u{00FF}') {
+    if is_utf8_latin1(data.as_bytes()) && data.bytes().any(|c| 0x80 <= c) {
         let latin1 = encode_latin1_lossy(data);
         let (res, _, _) = WINDOWS_1255.decode(&latin1[..]);
         String::from(res)
@@ -279,7 +279,27 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_gibberish() {
+    fn test_gibberish_and_english() {
         assert_eq!(translate_hebrew_gibberish("ðåòí áðàé - hello"), "נועם בנאי - hello");
+    }
+
+    #[test]
+    fn test_one_word_gibberish() {
+        assert_eq!(translate_hebrew_gibberish("ðåòí"), "נועם");
+    }
+
+    #[test]
+    fn test_hebrew() {
+        assert_eq!(translate_hebrew_gibberish("נועם"), "נועם");
+    }
+
+    #[test]
+    fn test_english() {
+        assert_eq!(translate_hebrew_gibberish("noam"), "noam");
+    }
+
+    #[test]
+    fn test_hebrew_and_english() {
+        assert_eq!(translate_hebrew_gibberish("noam בנאי"), "noam בנאי");
     }
 }
