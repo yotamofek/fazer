@@ -6,9 +6,14 @@ extern crate metaflac;
 extern crate ogg_metadata;
 extern crate mp4parse;
 extern crate hound;
+extern crate encoding_rs;
 
 #[macro_use]
 extern crate serde_derive;
+
+use encoding_rs::WINDOWS_1255;
+use encoding_rs::mem::encode_latin1_lossy;
+use encoding_rs::mem::is_utf8_latin1;
 
 #[wasm_bindgen(js_namespace = console)]
 extern "C" {
@@ -81,7 +86,7 @@ pub fn read_mp3(reader: &[u8]) -> Option<Metadata> {
                 metadata.artist = Some(tag.original_artists.join(", "))
             }
         }
-        
+
         if let Some(ref tag) = res.tag {
             if metadata.artist.is_none() && !tag.artist.is_empty() {
                 metadata.artist = Some(String::from(tag.artist.trim_end_matches('\x00')))
@@ -154,7 +159,7 @@ pub fn read_ogg(reader: &[u8]) -> Option<Metadata> {
             ..Default::default()
         }
     }
-    
+
     if let Ok(res) = ogg_metadata::read_format(reader) {
         for format in res {
             match format {
@@ -211,7 +216,7 @@ pub fn read_mp4(reader: &[u8]) -> Option<Metadata> {
                         .and_then(|duration| track.timescale.map(|timescale|
                             (duration.0 as f64 / timescale.0 as f64)
                         )),
-                    
+
                     ..Default::default()
                 })
             }
@@ -240,6 +245,18 @@ pub fn read_wav(reader: &[u8]) -> Option<Metadata> {
     })
 }
 
+
+#[wasm_bindgen(js_name = "translateHebrewGibberish")]
+pub fn translate_hebrew_gibberish(data: &str) -> String {
+    if is_utf8_latin1(data.as_bytes()) && data.chars().any(|c| '\u{0080}' >= c && c <= '\u{00FF}') {
+        let latin1 = encode_latin1_lossy(data);
+        let (res, _, _) = WINDOWS_1255.decode(&latin1[..]);
+        String::from(res)
+    } else {
+        String::from(data)
+    }
+}
+
 #[wasm_bindgen]
 pub fn fazer(data: Vec<u8>) -> JsValue {
     if let Some(metadata) = read_mp4(&data[..]) {
@@ -254,5 +271,15 @@ pub fn fazer(data: Vec<u8>) -> JsValue {
         JsValue::from_serde(&metadata).unwrap()
     } else {
         JsValue::from_serde(&()).unwrap()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_gibberish() {
+        assert_eq!(translate_hebrew_gibberish("ðåòí áðàé - hello"), "נועם בנאי - hello");
     }
 }
