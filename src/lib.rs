@@ -101,7 +101,7 @@ pub fn read_mp3(reader: &[u8]) -> Option<Metadata> {
             }
         }
 
-        metadata.seconds = Some(res.duration.as_float_secs());
+        metadata.seconds = Some(res.duration.as_secs_f64());
     }
 
     Some(metadata)
@@ -155,7 +155,7 @@ pub fn read_ogg(reader: &[u8]) -> Option<Metadata> {
         Metadata {
             format: String::from("OPUS"),
             channels: Some(metadata.get_output_channel_count().into()),
-            seconds: metadata.get_duration().map(|duration| duration.as_float_secs()),
+            seconds: metadata.get_duration().map(|duration| duration.as_secs_f64()),
             ..Default::default()
         }
     }
