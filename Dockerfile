@@ -5,7 +5,7 @@ RUN rustup target add wasm32-unknown-unknown && cargo install wasm-pack
 ADD . .
 RUN wasm-pack build
 
-FROM node:11.10.1-slim as builder
+FROM node:12.7.0-slim as builder
 
 COPY --from=rust /root/pkg/ .
 RUN npm pack
