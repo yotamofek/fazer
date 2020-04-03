@@ -8,17 +8,15 @@ edition = "2018"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-web-sys = "0.3.8"
+web-sys = "*"
 mp3-metadata = { git = "https://github.com/yotamofek/mp3-metadata" }
 metaflac = { git = "https://github.com/yotamofek/rust-metaflac" }
-serde = "1.0.89"
-serde_derive = "1.0.89"
+serde = { version = "*", features = ["derive"] }
 id3 = "0.3.0"
 lewton = "0.9.3"
 ogg_metadata = "0.4.1"
 mp4parse = "0.11.2"
 hound = "3.4.0"
-encoding_rs ="0.8.17"
 
 [dependencies.wasm-bindgen]
 version = "0.2.31"

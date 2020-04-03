@@ -1,30 +1,13 @@
-#![feature(duration_float)]
-
-extern crate mp3_metadata;
-extern crate id3;
-extern crate metaflac;
-extern crate ogg_metadata;
-extern crate mp4parse;
-extern crate hound;
-extern crate encoding_rs;
-
-#[macro_use]
-extern crate serde_derive;
-
-use encoding_rs::WINDOWS_1255;
-use encoding_rs::mem::encode_latin1_lossy;
-use encoding_rs::mem::is_utf8_latin1;
-
 #[wasm_bindgen(js_namespace = console)]
 extern "C" {
     fn log(s: &str);
 }
 
-extern crate wasm_bindgen;
-extern crate web_sys;
-use wasm_bindgen::prelude::*;
-use std::io::{BufReader, Cursor};
 use ogg_metadata::AudioMetadata;
+use serde::Serialize;
+use std::char;
+use std::io::{BufReader, Cursor};
+use wasm_bindgen::prelude::*;
 
 #[derive(Serialize, Default)]
 pub struct Metadata {
@@ -62,7 +45,9 @@ pub fn read_mp3(reader: &[u8]) -> Option<Metadata> {
             metadata.title = Some(String::from(title))
         }
 
-        metadata.seconds = res.duration().map(|miliseconds| f64::from(miliseconds) / 1_000_f64)
+        metadata.seconds = res
+            .duration()
+            .map(|miliseconds| f64::from(miliseconds) / 1_000_f64)
     }
 
     if let Ok(res) = mp3_metadata::read_from_slice(&reader[..]) {
@@ -70,7 +55,7 @@ pub fn read_mp3(reader: &[u8]) -> Option<Metadata> {
             metadata.channels = match frame.chan_type {
                 mp3_metadata::ChannelType::SingleChannel => Some(1),
                 mp3_metadata::ChannelType::Unknown => None,
-                _ => Some(2)
+                _ => Some(2),
             };
 
             metadata.bitrate = Some(frame.bitrate.into());
@@ -108,15 +93,15 @@ pub fn read_mp3(reader: &[u8]) -> Option<Metadata> {
 }
 
 pub fn read_flac(reader: &[u8]) -> Option<Metadata> {
-    fn get_comment(data: Option<& Vec<String>>) -> Option<& String> {
+    fn get_comment(data: Option<&Vec<String>>) -> Option<&String> {
         data.map(|vec| vec.first()).unwrap_or_default()
     }
 
     let tag = match metaflac::Tag::read_from(&mut BufReader::new(&reader[..])) {
         Err(_) => {
             return None;
-        },
-        Ok(tag) => tag
+        }
+        Ok(tag) => tag,
     };
 
     let mut metadata = Metadata {
@@ -126,7 +111,8 @@ pub fn read_flac(reader: &[u8]) -> Option<Metadata> {
 
     for block in tag.blocks() {
         if let metaflac::Block::StreamInfo(stream_info) = block {
-            metadata.seconds = Some(stream_info.total_samples as f64 / f64::from(stream_info.sample_rate));
+            metadata.seconds =
+                Some(stream_info.total_samples as f64 / f64::from(stream_info.sample_rate));
             metadata.channels = Some(stream_info.num_channels.into());
         } else if let metaflac::Block::VorbisComment(comment) = block {
             if let Some(artist) = get_comment(comment.artist()) {
@@ -143,7 +129,7 @@ pub fn read_flac(reader: &[u8]) -> Option<Metadata> {
                 metadata.title = Some(title.clone())
             }
         }
-    };
+    }
 
     Some(metadata)
 }
@@ -155,7 +141,9 @@ pub fn read_ogg(reader: &[u8]) -> Option<Metadata> {
         Metadata {
             format: String::from("OPUS"),
             channels: Some(metadata.get_output_channel_count().into()),
-            seconds: metadata.get_duration().map(|duration| duration.as_secs_f64()),
+            seconds: metadata
+                .get_duration()
+                .map(|duration| duration.as_secs_f64()),
             ..Default::default()
         }
     }
@@ -177,22 +165,23 @@ pub fn read_mp4(reader: &[u8]) -> Option<Metadata> {
     let mut ctx = mp4parse::MediaContext::new();
     let ok = mp4parse::read_mp4(&mut BufReader::new(Cursor::new(&reader[..])), &mut ctx);
 
-    if ok.is_err() { return None };
+    if ok.is_err() {
+        return None;
+    };
 
     for track in &ctx.tracks {
         if track.track_type != mp4parse::TrackType::Audio {
-            continue
+            continue;
         }
 
         if let Some(ref stsd) = track.stsd {
-            let entry = stsd.descriptions.iter()
-                .flat_map(
-                    |desc|
-                        match desc {
-                            mp4parse::SampleEntry::Audio(entry) => Some(entry),
-                            _ => None
-                        }
-                )
+            let entry = stsd
+                .descriptions
+                .iter()
+                .flat_map(|desc| match desc {
+                    mp4parse::SampleEntry::Audio(entry) => Some(entry),
+                    _ => None,
+                })
                 .next();
 
             if let Some(ref entry) = entry {
@@ -206,19 +195,20 @@ pub fn read_mp4(reader: &[u8]) -> Option<Metadata> {
                         mp4parse::CodecType::FLAC => "FLAC",
                         mp4parse::CodecType::VP8 => "VP8",
                         mp4parse::CodecType::VP9 => "VP9",
-                        _ => { return None },
+                        _ => return None,
                     }),
 
                     channels: Some(entry.channelcount),
                     sample_rate: Some(entry.samplerate),
                     bit_depth: Some(entry.samplesize),
-                    seconds: track.duration
-                        .and_then(|duration| track.timescale.map(|timescale|
-                            (duration.0 as f64 / timescale.0 as f64)
-                        )),
+                    seconds: track.duration.and_then(|duration| {
+                        track
+                            .timescale
+                            .map(|timescale| (duration.0 as f64 / timescale.0 as f64))
+                    }),
 
                     ..Default::default()
-                })
+                });
             }
         }
     }
@@ -229,7 +219,7 @@ pub fn read_mp4(reader: &[u8]) -> Option<Metadata> {
 pub fn read_wav(reader: &[u8]) -> Option<Metadata> {
     let reader = match hound::WavReader::new(&reader[..]) {
         Ok(reader) => reader,
-        Err(_) => return None
+        Err(_) => return None,
     };
 
     let spec = reader.spec();
@@ -240,21 +230,33 @@ pub fn read_wav(reader: &[u8]) -> Option<Metadata> {
         sample_rate: Some(spec.sample_rate.into()),
         bit_depth: Some(spec.bits_per_sample),
         channels: Some(spec.channels.into()),
-        bitrate: Some(f64::from(spec.sample_rate) * f64::from(spec.channels) * f64::from(spec.bits_per_sample) / 1_024_f64),
+        bitrate: Some(
+            f64::from(spec.sample_rate)
+                * f64::from(spec.channels)
+                * f64::from(spec.bits_per_sample)
+                / 1_024_f64,
+        ),
         ..Default::default()
     })
 }
 
-
 #[wasm_bindgen(js_name = "translateHebrewGibberish")]
 pub fn translate_hebrew_gibberish(data: &str) -> String {
-    if is_utf8_latin1(data.as_bytes()) && data.bytes().any(|c| 0x80 <= c) {
-        let latin1 = encode_latin1_lossy(data);
-        let (res, _, _) = WINDOWS_1255.decode(&latin1[..]);
-        String::from(res)
-    } else {
-        String::from(data)
-    }
+    const LATIN_TO_HEBREW_DELTA: u32 = 'א' as u32 - 'à' as u32;
+
+    let is_latin1 = |c: char| c >= 'à' && c <= 'ö';
+    let from_latin1_to_hebrew =
+        |c| unsafe { char::from_u32_unchecked(c as u32 + LATIN_TO_HEBREW_DELTA) };
+
+    data.chars()
+        .map(|c| {
+            if !is_latin1(c) {
+                c
+            } else {
+                from_latin1_to_hebrew(c)
+            }
+        })
+        .collect()
 }
 
 #[wasm_bindgen]
@@ -280,7 +282,10 @@ mod tests {
 
     #[test]
     fn test_gibberish_and_english() {
-        assert_eq!(translate_hebrew_gibberish("ðåòí áðàé - hello"), "נועם בנאי - hello");
+        assert_eq!(
+            translate_hebrew_gibberish("ðåòí áðàé - hello"),
+            "נועם בנאי - hello"
+        );
     }
 
     #[test]
