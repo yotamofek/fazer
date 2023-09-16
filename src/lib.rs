@@ -3,6 +3,20 @@ use std::{char, io::Cursor};
 
 use wasm_bindgen::prelude::*;
 
+#[derive(Serialize)]
+#[serde(rename_all = "UPPERCASE")]
+enum Format {
+    Mp3,
+    Flac,
+    Opus,
+    Aac,
+    Alac,
+    Av1,
+    Vp8,
+    Vp9,
+    Wav,
+}
+
 #[derive(Serialize, Default)]
 pub struct Metadata {
     artist: Option<String>,
@@ -11,7 +25,7 @@ pub struct Metadata {
 
     seconds: Option<f64>,
 
-    format: String,
+    format: Option<Format>,
     channels: Option<u32>,
     bitrate: Option<f64>,
     bit_depth: Option<u16>,
@@ -20,7 +34,7 @@ pub struct Metadata {
 
 pub fn read_mp3(reader: &[u8]) -> Option<Metadata> {
     let mut metadata = Metadata {
-        format: String::from("MP3"),
+        format: Some(Format::Mp3),
         ..Default::default()
     };
 
@@ -98,7 +112,7 @@ pub fn read_flac(reader: &[u8]) -> Option<Metadata> {
     let tag = Tag::read_from(&mut { reader }).ok()?;
 
     let mut metadata = Metadata {
-        format: String::from("FLAC"),
+        format: Some(Format::Flac),
         ..Default::default()
     };
 
@@ -132,7 +146,7 @@ pub fn read_ogg(reader: &[u8]) -> Option<Metadata> {
 
     fn format_metadata<T: AudioMetadata>(metadata: &T) -> Metadata {
         Metadata {
-            format: String::from("OPUS"),
+            format: Some(Format::Opus),
             channels: Some(metadata.get_output_channel_count().into()),
             seconds: metadata
                 .get_duration()
@@ -179,15 +193,15 @@ pub fn read_mp4(reader: &[u8]) -> Option<Metadata> {
                 },
             )| {
                 Some(Metadata {
-                    format: String::from(match codec_type {
-                        CodecType::MP3 => "MP3",
-                        CodecType::AAC => "AAC",
-                        CodecType::ALAC => "ALAC",
-                        CodecType::AV1 => "AV1",
-                        CodecType::Opus => "OPUS",
-                        CodecType::FLAC => "FLAC",
-                        CodecType::VP8 => "VP8",
-                        CodecType::VP9 => "VP9",
+                    format: Some(match codec_type {
+                        CodecType::MP3 => Format::Mp3,
+                        CodecType::AAC => Format::Aac,
+                        CodecType::ALAC => Format::Alac,
+                        CodecType::AV1 => Format::Av1,
+                        CodecType::Opus => Format::Opus,
+                        CodecType::FLAC => Format::Flac,
+                        CodecType::VP8 => Format::Vp8,
+                        CodecType::VP9 => Format::Vp9,
                         _ => return None,
                     }),
 
@@ -219,7 +233,7 @@ pub fn read_wav(reader: &[u8]) -> Option<Metadata> {
     } = reader.spec();
 
     Some(Metadata {
-        format: String::from("WAV"),
+        format: Some(Format::Wav),
         seconds: Some(f64::from(reader.duration()) / f64::from(sample_rate)),
         sample_rate: Some(sample_rate.into()),
         bit_depth: Some(bits_per_sample),
