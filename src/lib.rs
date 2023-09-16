@@ -1,5 +1,5 @@
 use serde::Serialize;
-use std::{char, io::Cursor};
+use std::io::Cursor;
 
 use wasm_bindgen::prelude::*;
 
@@ -245,25 +245,6 @@ pub fn read_wav(reader: &[u8]) -> Option<Metadata> {
     })
 }
 
-#[wasm_bindgen(js_name = "translateHebrewGibberish")]
-pub fn translate_hebrew_gibberish(data: &str) -> String {
-    const LATIN_TO_HEBREW_DELTA: u32 = 'א' as u32 - 'à' as u32;
-
-    let is_latin1 = |c: char| ('à'..='ö').contains(&c);
-    let from_latin1_to_hebrew =
-        |c| unsafe { char::from_u32_unchecked(c as u32 + LATIN_TO_HEBREW_DELTA) };
-
-    data.chars()
-        .map(|c| {
-            if !is_latin1(c) {
-                c
-            } else {
-                from_latin1_to_hebrew(c)
-            }
-        })
-        .collect()
-}
-
 #[wasm_bindgen]
 pub fn fazer(data: Vec<u8>) -> Result<JsValue, JsValue> {
     let metadata = read_mp4(&data)
@@ -273,37 +254,4 @@ pub fn fazer(data: Vec<u8>) -> Result<JsValue, JsValue> {
         .or_else(|| read_mp3(&data));
 
     Ok(serde_wasm_bindgen::to_value(&metadata)?)
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_gibberish_and_english() {
-        assert_eq!(
-            translate_hebrew_gibberish("ðåòí áðàé - hello"),
-            "נועם בנאי - hello"
-        );
-    }
-
-    #[test]
-    fn test_one_word_gibberish() {
-        assert_eq!(translate_hebrew_gibberish("ðåòí"), "נועם");
-    }
-
-    #[test]
-    fn test_hebrew() {
-        assert_eq!(translate_hebrew_gibberish("נועם"), "נועם");
-    }
-
-    #[test]
-    fn test_english() {
-        assert_eq!(translate_hebrew_gibberish("noam"), "noam");
-    }
-
-    #[test]
-    fn test_hebrew_and_english() {
-        assert_eq!(translate_hebrew_gibberish("noam בנאי"), "noam בנאי");
-    }
 }
