@@ -1,4 +1,3 @@
-use ogg_metadata::AudioMetadata;
 use serde::Serialize;
 use std::char;
 use std::io::{BufReader, Cursor};
@@ -88,16 +87,13 @@ pub fn read_mp3(reader: &[u8]) -> Option<Metadata> {
 }
 
 pub fn read_flac(reader: &[u8]) -> Option<Metadata> {
+    use metaflac::{Block, Tag};
+
     fn get_comment(data: Option<&Vec<String>>) -> Option<&String> {
-        data.map(|vec| vec.first()).unwrap_or_default()
+        data?.first()
     }
 
-    let tag = match metaflac::Tag::read_from(&mut BufReader::new(reader)) {
-        Err(_) => {
-            return None;
-        }
-        Ok(tag) => tag,
-    };
+    let tag = Tag::read_from(&mut { reader }).ok()?;
 
     let mut metadata = Metadata {
         format: String::from("FLAC"),
@@ -105,11 +101,11 @@ pub fn read_flac(reader: &[u8]) -> Option<Metadata> {
     };
 
     for block in tag.blocks() {
-        if let metaflac::Block::StreamInfo(stream_info) = block {
+        if let Block::StreamInfo(stream_info) = block {
             metadata.seconds =
                 Some(stream_info.total_samples as f64 / f64::from(stream_info.sample_rate));
             metadata.channels = Some(stream_info.num_channels.into());
-        } else if let metaflac::Block::VorbisComment(comment) = block {
+        } else if let Block::VorbisComment(comment) = block {
             if let Some(artist) = get_comment(comment.artist()) {
                 metadata.artist = Some(artist.clone())
             } else if let Some(artist) = get_comment(comment.album_artist()) {
@@ -130,6 +126,8 @@ pub fn read_flac(reader: &[u8]) -> Option<Metadata> {
 }
 
 pub fn read_ogg(reader: &[u8]) -> Option<Metadata> {
+    use ogg_metadata::{read_format, AudioMetadata, OggFormat};
+
     let reader = BufReader::new(Cursor::new(reader));
 
     fn format_metadata<T: AudioMetadata>(metadata: &T) -> Metadata {
@@ -143,59 +141,61 @@ pub fn read_ogg(reader: &[u8]) -> Option<Metadata> {
         }
     }
 
-    if let Ok(res) = ogg_metadata::read_format(reader) {
-        for format in res {
-            match format {
-                ogg_metadata::OggFormat::Opus(ref res) => return Some(format_metadata(res)),
-                ogg_metadata::OggFormat::Vorbis(ref res) => return Some(format_metadata(res)),
-                _ => {}
-            }
-        }
-    }
-
-    None
+    read_format(reader).ok().and_then(|formats| {
+        formats.iter().find_map(|format| match format {
+            OggFormat::Opus(res) => Some(format_metadata(res)),
+            OggFormat::Vorbis(res) => Some(format_metadata(res)),
+            _ => None,
+        })
+    })
 }
 
 pub fn read_mp4(reader: &[u8]) -> Option<Metadata> {
-    let mut ctx = mp4parse::MediaContext::new();
-    let ok = mp4parse::read_mp4(&mut BufReader::new(Cursor::new(reader)), &mut ctx);
-
-    if ok.is_err() {
-        return None;
+    use mp4parse::{
+        read_mp4, AudioSampleEntry, CodecType, MediaContext, SampleDescriptionBox, SampleEntry,
+        Track, TrackType,
     };
 
-    for track in &ctx.tracks {
-        if track.track_type != mp4parse::TrackType::Audio {
-            continue;
-        }
+    let mut ctx = MediaContext::new();
+    read_mp4(&mut BufReader::new(Cursor::new(reader)), &mut ctx).ok()?;
 
-        if let Some(ref stsd) = track.stsd {
-            let entry = stsd
-                .descriptions
-                .iter()
-                .flat_map(|desc| match desc {
-                    mp4parse::SampleEntry::Audio(entry) => Some(entry),
-                    _ => None,
-                })
-                .next();
-
-            if let Some(entry) = entry {
-                return Some(Metadata {
-                    format: String::from(match entry.codec_type {
-                        mp4parse::CodecType::MP3 => "MP3",
-                        mp4parse::CodecType::AAC => "AAC",
-                        mp4parse::CodecType::ALAC => "ALAC",
-                        mp4parse::CodecType::AV1 => "AV1",
-                        mp4parse::CodecType::Opus => "OPUS",
-                        mp4parse::CodecType::FLAC => "FLAC",
-                        mp4parse::CodecType::VP8 => "VP8",
-                        mp4parse::CodecType::VP9 => "VP9",
+    ctx.tracks
+        .iter()
+        .filter(|Track { track_type, .. }| track_type == &TrackType::Audio)
+        .filter_map(|track @ Track { stsd, .. }| stsd.as_ref().map(|stsd| (track, stsd)))
+        .find_map(|(track, SampleDescriptionBox { descriptions, .. })| {
+            descriptions.iter().find_map(|entry| match entry {
+                SampleEntry::Audio(entry) => Some((track, entry)),
+                _ => None,
+            })
+        })
+        .and_then(
+            |(
+                track,
+                &AudioSampleEntry {
+                    codec_type,
+                    channelcount,
+                    samplesize,
+                    samplerate,
+                    ..
+                },
+            )| {
+                Some(Metadata {
+                    format: String::from(match codec_type {
+                        CodecType::MP3 => "MP3",
+                        CodecType::AAC => "AAC",
+                        CodecType::ALAC => "ALAC",
+                        CodecType::AV1 => "AV1",
+                        CodecType::Opus => "OPUS",
+                        CodecType::FLAC => "FLAC",
+                        CodecType::VP8 => "VP8",
+                        CodecType::VP9 => "VP9",
                         _ => return None,
                     }),
 
-                    channels: Some(entry.channelcount),
-                    sample_rate: Some(entry.samplerate),
-                    bit_depth: Some(entry.samplesize),
+                    channels: Some(channelcount),
+                    sample_rate: Some(samplerate),
+                    bit_depth: Some(samplesize),
                     seconds: track.duration.and_then(|duration| {
                         track
                             .timescale
@@ -203,33 +203,31 @@ pub fn read_mp4(reader: &[u8]) -> Option<Metadata> {
                     }),
 
                     ..Default::default()
-                });
-            }
-        }
-    }
-
-    None
+                })
+            },
+        )
 }
 
 pub fn read_wav(reader: &[u8]) -> Option<Metadata> {
-    let reader = match hound::WavReader::new(reader) {
-        Ok(reader) => reader,
-        Err(_) => return None,
-    };
+    use hound::{WavReader, WavSpec};
 
-    let spec = reader.spec();
+    let reader = WavReader::new(reader).ok()?;
+
+    let WavSpec {
+        channels,
+        sample_rate,
+        bits_per_sample,
+        ..
+    } = reader.spec();
 
     Some(Metadata {
         format: String::from("WAV"),
-        seconds: Some(f64::from(reader.duration()) / f64::from(spec.sample_rate)),
-        sample_rate: Some(spec.sample_rate.into()),
-        bit_depth: Some(spec.bits_per_sample),
-        channels: Some(spec.channels.into()),
+        seconds: Some(f64::from(reader.duration()) / f64::from(sample_rate)),
+        sample_rate: Some(sample_rate.into()),
+        bit_depth: Some(bits_per_sample),
+        channels: Some(channels.into()),
         bitrate: Some(
-            f64::from(spec.sample_rate)
-                * f64::from(spec.channels)
-                * f64::from(spec.bits_per_sample)
-                / 1_024_f64,
+            f64::from(sample_rate) * f64::from(channels) * f64::from(bits_per_sample) / 1_024_f64,
         ),
         ..Default::default()
     })
