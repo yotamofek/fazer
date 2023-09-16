@@ -12,11 +12,11 @@ mp3-metadata = { git = "https://github.com/yotamofek/mp3-metadata" }
 metaflac = { git = "https://github.com/yotamofek/rust-metaflac" }
 serde = { version = "1", features = ["derive"] }
 serde-wasm-bindgen = "0.4"
-id3 = "0.3.0"
-lewton = "0.9.3"
+id3 = "1.7.0"
+lewton = "0.10.2"
 ogg_metadata = "0.4.1"
-mp4parse = "0.11.2"
-hound = "3.4.0"
+mp4parse = "0.17"
+hound = "3.5.0"
 
 [dependencies.wasm-bindgen]
 version = "0.2.87"

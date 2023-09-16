@@ -25,6 +25,8 @@ pub fn read_mp3(reader: &[u8]) -> Option<Metadata> {
     };
 
     if let Ok(res) = id3::Tag::read_from(reader) {
+        use id3::TagLike;
+
         if let Some(artist) = res.artist() {
             metadata.artist = Some(String::from(artist))
         } else if let Some(artist) = res.album_artist() {
@@ -152,12 +154,10 @@ pub fn read_ogg(reader: &[u8]) -> Option<Metadata> {
 
 pub fn read_mp4(reader: &[u8]) -> Option<Metadata> {
     use mp4parse::{
-        read_mp4, AudioSampleEntry, CodecType, MediaContext, SampleDescriptionBox, SampleEntry,
-        Track, TrackType,
+        read_mp4, AudioSampleEntry, CodecType, SampleDescriptionBox, SampleEntry, Track, TrackType,
     };
 
-    let mut ctx = MediaContext::new();
-    read_mp4(&mut BufReader::new(Cursor::new(reader)), &mut ctx).ok()?;
+    let ctx = read_mp4(&mut { reader }).ok()?;
 
     ctx.tracks
         .iter()
