@@ -25,7 +25,7 @@ pub fn read_mp3(reader: &[u8]) -> Option<Metadata> {
         ..Default::default()
     };
 
-    if let Ok(res) = id3::Tag::read_from(&reader[..]) {
+    if let Ok(res) = id3::Tag::read_from(reader) {
         if let Some(artist) = res.artist() {
             metadata.artist = Some(String::from(artist))
         } else if let Some(artist) = res.album_artist() {
@@ -45,7 +45,7 @@ pub fn read_mp3(reader: &[u8]) -> Option<Metadata> {
             .map(|miliseconds| f64::from(miliseconds) / 1_000_f64)
     }
 
-    if let Ok(res) = mp3_metadata::read_from_slice(&reader[..]) {
+    if let Ok(res) = mp3_metadata::read_from_slice(reader) {
         if let Some(frame) = res.frames.first() {
             metadata.channels = match frame.chan_type {
                 mp3_metadata::ChannelType::SingleChannel => Some(1),
@@ -92,7 +92,7 @@ pub fn read_flac(reader: &[u8]) -> Option<Metadata> {
         data.map(|vec| vec.first()).unwrap_or_default()
     }
 
-    let tag = match metaflac::Tag::read_from(&mut BufReader::new(&reader[..])) {
+    let tag = match metaflac::Tag::read_from(&mut BufReader::new(reader)) {
         Err(_) => {
             return None;
         }
@@ -130,7 +130,7 @@ pub fn read_flac(reader: &[u8]) -> Option<Metadata> {
 }
 
 pub fn read_ogg(reader: &[u8]) -> Option<Metadata> {
-    let reader = BufReader::new(Cursor::new(&reader[..]));
+    let reader = BufReader::new(Cursor::new(reader));
 
     fn format_metadata<T: AudioMetadata>(metadata: &T) -> Metadata {
         Metadata {
@@ -158,7 +158,7 @@ pub fn read_ogg(reader: &[u8]) -> Option<Metadata> {
 
 pub fn read_mp4(reader: &[u8]) -> Option<Metadata> {
     let mut ctx = mp4parse::MediaContext::new();
-    let ok = mp4parse::read_mp4(&mut BufReader::new(Cursor::new(&reader[..])), &mut ctx);
+    let ok = mp4parse::read_mp4(&mut BufReader::new(Cursor::new(reader)), &mut ctx);
 
     if ok.is_err() {
         return None;
@@ -179,7 +179,7 @@ pub fn read_mp4(reader: &[u8]) -> Option<Metadata> {
                 })
                 .next();
 
-            if let Some(ref entry) = entry {
+            if let Some(entry) = entry {
                 return Some(Metadata {
                     format: String::from(match entry.codec_type {
                         mp4parse::CodecType::MP3 => "MP3",
@@ -212,7 +212,7 @@ pub fn read_mp4(reader: &[u8]) -> Option<Metadata> {
 }
 
 pub fn read_wav(reader: &[u8]) -> Option<Metadata> {
-    let reader = match hound::WavReader::new(&reader[..]) {
+    let reader = match hound::WavReader::new(reader) {
         Ok(reader) => reader,
         Err(_) => return None,
     };
@@ -239,7 +239,7 @@ pub fn read_wav(reader: &[u8]) -> Option<Metadata> {
 pub fn translate_hebrew_gibberish(data: &str) -> String {
     const LATIN_TO_HEBREW_DELTA: u32 = 'א' as u32 - 'à' as u32;
 
-    let is_latin1 = |c: char| c >= 'à' && c <= 'ö';
+    let is_latin1 = |c: char| ('à'..='ö').contains(&c);
     let from_latin1_to_hebrew =
         |c| unsafe { char::from_u32_unchecked(c as u32 + LATIN_TO_HEBREW_DELTA) };
 
