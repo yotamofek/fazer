@@ -1,8 +1,3 @@
-#[wasm_bindgen(js_namespace = console)]
-extern "C" {
-    fn log(s: &str);
-}
-
 use ogg_metadata::AudioMetadata;
 use serde::Serialize;
 use std::char;
