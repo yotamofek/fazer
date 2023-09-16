@@ -8,15 +8,15 @@ edition = "2018"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-mp3-metadata = "0.3.4"
-metaflac = "0.2.5"
-serde = { version = "1", features = ["derive"] }
-serde-wasm-bindgen = "0.4"
+hound = "3.5.0"
 id3 = "1.7.0"
 lewton = "0.10.2"
-ogg_metadata = "0.4.1"
+metaflac = "0.2.5"
+mp3-metadata = "0.3.4"
 mp4parse = "0.17"
-hound = "3.5.0"
+ogg_metadata = "0.4.1"
+serde = { version = "1", features = ["derive"] }
+serde-wasm-bindgen = "0.4"
 
 [dependencies.wasm-bindgen]
 version = "0.2.87"
