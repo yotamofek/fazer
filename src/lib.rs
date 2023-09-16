@@ -1,6 +1,6 @@
 use serde::Serialize;
-use std::char;
-use std::io::{BufReader, Cursor};
+use std::{char, io::Cursor};
+
 use wasm_bindgen::prelude::*;
 
 #[derive(Serialize, Default)]
@@ -130,8 +130,6 @@ pub fn read_flac(reader: &[u8]) -> Option<Metadata> {
 pub fn read_ogg(reader: &[u8]) -> Option<Metadata> {
     use ogg_metadata::{read_format, AudioMetadata, OggFormat};
 
-    let reader = BufReader::new(Cursor::new(reader));
-
     fn format_metadata<T: AudioMetadata>(metadata: &T) -> Metadata {
         Metadata {
             format: String::from("OPUS"),
@@ -143,7 +141,7 @@ pub fn read_ogg(reader: &[u8]) -> Option<Metadata> {
         }
     }
 
-    read_format(reader).ok().and_then(|formats| {
+    read_format(Cursor::new(reader)).ok().and_then(|formats| {
         formats.iter().find_map(|format| match format {
             OggFormat::Opus(res) => Some(format_metadata(res)),
             OggFormat::Vorbis(res) => Some(format_metadata(res)),

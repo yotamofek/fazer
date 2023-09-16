@@ -8,8 +8,8 @@ edition = "2018"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-mp3-metadata = { git = "https://github.com/yotamofek/mp3-metadata" }
-metaflac = { git = "https://github.com/yotamofek/rust-metaflac" }
+mp3-metadata = "0.3.4"
+metaflac = "0.2.5"
 serde = { version = "1", features = ["derive"] }
 serde-wasm-bindgen = "0.4"
 id3 = "1.7.0"
