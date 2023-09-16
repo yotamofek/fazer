@@ -253,20 +253,14 @@ pub fn translate_hebrew_gibberish(data: &str) -> String {
 }
 
 #[wasm_bindgen]
-pub fn fazer(data: Vec<u8>) -> JsValue {
-    if let Some(metadata) = read_mp4(&data[..]) {
-        JsValue::from_serde(&metadata).unwrap()
-    } else if let Some(metadata) = read_ogg(&data[..]) {
-        JsValue::from_serde(&metadata).unwrap()
-    } else if let Some(metadata) = read_flac(&data[..]) {
-        JsValue::from_serde(&metadata).unwrap()
-    } else if let Some(metadata) = read_wav(&data[..]) {
-        JsValue::from_serde(&metadata).unwrap()
-    } else if let Some(metadata) = read_mp3(&data[..]) {
-        JsValue::from_serde(&metadata).unwrap()
-    } else {
-        JsValue::from_serde(&()).unwrap()
-    }
+pub fn fazer(data: Vec<u8>) -> Result<JsValue, JsValue> {
+    let metadata = read_mp4(&data)
+        .or_else(|| read_ogg(&data))
+        .or_else(|| read_flac(&data))
+        .or_else(|| read_wav(&data))
+        .or_else(|| read_mp3(&data));
+
+    Ok(serde_wasm_bindgen::to_value(&metadata)?)
 }
 
 #[cfg(test)]
