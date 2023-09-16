@@ -21,3 +21,6 @@ serde-wasm-bindgen = "0.4"
 [dependencies.wasm-bindgen]
 version = "0.2.87"
 features = ["serde-serialize"]
+
+[profile.release]
+lto = "fat"
