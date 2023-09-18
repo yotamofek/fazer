@@ -18,7 +18,7 @@ jobs:
         with:
           version: "latest"
       - name: Build
-        run: wasm-pack build
+        run: wasm-pack build --target web
       - name: Pack
         run: wasm-pack pack
       - name: Release
