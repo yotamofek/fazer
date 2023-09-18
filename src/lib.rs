@@ -43,7 +43,7 @@ enum Format {
 }
 
 #[skip_serializing_none]
-#[derive(Serialize, Default)]
+#[derive(Serialize)]
 pub struct Metadata {
     artist: Option<String>,
     album: Option<String>,
@@ -51,18 +51,31 @@ pub struct Metadata {
 
     seconds: Option<f64>,
 
-    format: Option<Format>,
+    format: Format,
     channels: Option<u32>,
     bitrate: Option<f64>,
     bit_depth: Option<u16>,
     sample_rate: Option<f64>,
 }
 
+impl Metadata {
+    fn empty(format: Format) -> Self {
+        Self {
+            artist: None,
+            album: None,
+            title: None,
+            seconds: None,
+            format,
+            channels: None,
+            bitrate: None,
+            bit_depth: None,
+            sample_rate: None,
+        }
+    }
+}
+
 pub fn read_mp3(reader: &[u8]) -> Option<Metadata> {
-    let mut metadata = Metadata {
-        format: Some(Format::Mp3),
-        ..Default::default()
-    };
+    let mut metadata = Metadata::empty(Format::Mp3);
 
     if let Ok(res) = id3::Tag::read_from(reader) {
         use id3::TagLike;
@@ -137,10 +150,7 @@ pub fn read_flac(reader: &[u8]) -> Option<Metadata> {
 
     let tag = Tag::read_from(&mut { reader }).ok()?;
 
-    let mut metadata = Metadata {
-        format: Some(Format::Flac),
-        ..Default::default()
-    };
+    let mut metadata = Metadata::empty(Format::Flac);
 
     for block in tag.blocks() {
         if let Block::StreamInfo(stream_info) = block {
@@ -172,12 +182,11 @@ pub fn read_ogg(reader: &[u8]) -> Option<Metadata> {
 
     fn format_metadata<T: AudioMetadata>(metadata: &T) -> Metadata {
         Metadata {
-            format: Some(Format::Opus),
             channels: Some(metadata.get_output_channel_count().into()),
             seconds: metadata
                 .get_duration()
                 .map(|duration| duration.as_secs_f64()),
-            ..Default::default()
+            ..Metadata::empty(Format::Opus)
         }
     }
 
@@ -218,19 +227,19 @@ pub fn read_mp4(reader: &[u8]) -> Option<Metadata> {
                     ..
                 },
             )| {
-                Some(Metadata {
-                    format: Some(match codec_type {
-                        CodecType::MP3 => Format::Mp3,
-                        CodecType::AAC => Format::Aac,
-                        CodecType::ALAC => Format::Alac,
-                        CodecType::AV1 => Format::Av1,
-                        CodecType::Opus => Format::Opus,
-                        CodecType::FLAC => Format::Flac,
-                        CodecType::VP8 => Format::Vp8,
-                        CodecType::VP9 => Format::Vp9,
-                        _ => return None,
-                    }),
+                let format = match codec_type {
+                    CodecType::MP3 => Format::Mp3,
+                    CodecType::AAC => Format::Aac,
+                    CodecType::ALAC => Format::Alac,
+                    CodecType::AV1 => Format::Av1,
+                    CodecType::Opus => Format::Opus,
+                    CodecType::FLAC => Format::Flac,
+                    CodecType::VP8 => Format::Vp8,
+                    CodecType::VP9 => Format::Vp9,
+                    _ => return None,
+                };
 
+                Some(Metadata {
                     channels: Some(channelcount),
                     sample_rate: Some(samplerate),
                     bit_depth: Some(samplesize),
@@ -239,8 +248,7 @@ pub fn read_mp4(reader: &[u8]) -> Option<Metadata> {
                             .timescale
                             .map(|timescale| (duration.0 as f64 / timescale.0 as f64))
                     }),
-
-                    ..Default::default()
+                    ..Metadata::empty(format)
                 })
             },
         )
@@ -259,7 +267,6 @@ pub fn read_wav(reader: &[u8]) -> Option<Metadata> {
     } = reader.spec();
 
     Some(Metadata {
-        format: Some(Format::Wav),
         seconds: Some(f64::from(reader.duration()) / f64::from(sample_rate)),
         sample_rate: Some(sample_rate.into()),
         bit_depth: Some(bits_per_sample),
@@ -267,7 +274,7 @@ pub fn read_wav(reader: &[u8]) -> Option<Metadata> {
         bitrate: Some(
             f64::from(sample_rate) * f64::from(channels) * f64::from(bits_per_sample) / 1_024_f64,
         ),
-        ..Default::default()
+        ..Metadata::empty(Format::Wav)
     })
 }
 
