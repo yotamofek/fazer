@@ -1,6 +1,6 @@
 [package]
 name = "fazer"
-version = "0.0.1"
+version = "0.0.2"
 authors = ["Yotam Ofek <yotam.ofek@gmail.com>"]
 edition = "2018"
 
