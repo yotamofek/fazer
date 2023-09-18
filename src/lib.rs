@@ -1,7 +1,32 @@
 use serde::Serialize;
+use serde_with::skip_serializing_none;
 use std::io::Cursor;
 
 use wasm_bindgen::prelude::*;
+
+#[wasm_bindgen]
+extern "C" {
+    #[wasm_bindgen(typescript_type = "Metadata | null")]
+    pub type IMetadata;
+}
+
+#[wasm_bindgen(typescript_custom_section)]
+const TS_APPEND_CONTENT: &'static str = r#"
+type Format = 'MP3' | 'FLAC' | 'OPUS' | 'AAC' | 'ALAC' | 'AV1' | 'VP8' | 'VP9' | 'WAV';
+
+type Metadata = {
+    artist?: string;
+    album?: string;
+    title?: string;
+
+    seconds?: number;
+    format: Format;
+    channels?: number;
+    bitrate?: number;
+    bit_depth?: number;
+    sample_rate?: number;
+};
+"#;
 
 #[derive(Serialize)]
 #[serde(rename_all = "UPPERCASE")]
@@ -17,6 +42,7 @@ enum Format {
     Wav,
 }
 
+#[skip_serializing_none]
 #[derive(Serialize, Default)]
 pub struct Metadata {
     artist: Option<String>,
@@ -246,12 +272,12 @@ pub fn read_wav(reader: &[u8]) -> Option<Metadata> {
 }
 
 #[wasm_bindgen]
-pub fn fazer(data: Vec<u8>) -> Result<JsValue, JsValue> {
+pub fn fazer(data: Vec<u8>) -> Result<IMetadata, JsError> {
     let metadata = read_mp4(&data)
         .or_else(|| read_ogg(&data))
         .or_else(|| read_flac(&data))
         .or_else(|| read_wav(&data))
         .or_else(|| read_mp3(&data));
 
-    Ok(serde_wasm_bindgen::to_value(&metadata)?)
+    Ok(serde_wasm_bindgen::to_value(&metadata)?.unchecked_into())
 }

@@ -16,6 +16,7 @@ mp3-metadata = "0.3.4"
 mp4parse = "0.17"
 ogg_metadata = "0.4.1"
 serde = { version = "1", features = ["derive"] }
+serde_with = "3.3.0"
 serde-wasm-bindgen = "0.4"
 
 [dependencies.wasm-bindgen]
@@ -24,3 +25,4 @@ features = ["serde-serialize"]
 
 [profile.release]
 lto = "fat"
+opt-level = 's'
