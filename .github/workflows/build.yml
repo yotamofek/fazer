@@ -1,0 +1,29 @@
+name: Rust
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+    - uses: jetli/wasm-pack-action@v0.4.0
+      with:
+        version: 'latest'
+    - name: Build
+      run: wasm-pack build
+    - name: Pack
+      run: wasm-pack pack
+    - name: Release
+      uses: softprops/action-gh-release@v1
+      with:
+        files: pkg/fazer-*.tgz
